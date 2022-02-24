@@ -21,11 +21,6 @@ def main() -> None:
     # Appelez la fonction correspondante selon le type d'evenement (READ, RECV, SEND)
 
 
-
-
-
-
-
     # N'oubliez pas de fermer votre connection
 
 

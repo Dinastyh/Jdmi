@@ -5,7 +5,7 @@ import sys
 import fcntl
 import errno
 
-import my_little_chat
+from my_little_chat import *
 
 
 def main() -> None:
@@ -21,12 +21,12 @@ def main() -> None:
         if (event == EventType.READ):
             connection.readInput()
         elif (event == EventType.RECV):
-            msg = connection.receive
+            msg = connection.receive()
             print(msg)
         elif (event == EventType.SEND):
             connection.send()
-        else:
-            print("Error: Bad Event Type: #TATOUKC")
+        #else:
+        #    print("Error: Bad Event Type: #TATOUKC")
         
     connection.close()
 

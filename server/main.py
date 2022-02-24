@@ -1,6 +1,8 @@
 import errno
 import select
 import socket
+import fcntl
+import os
 
 
 class Client:
@@ -33,29 +35,31 @@ def main() -> None:
     epoll.register(server_socket.fileno(), select.EPOLLIN)
     try:
         while True:
-            print("ok")
             events = epoll.poll(1)
             send = []
             for fileno, event in events:
-                print("Fileno -> " + str(fileno))
-
                 if fileno == server_socket.fileno():
-                    print("Conneciton")
+                    print("Connection")
                     connection, address = server_socket.accept()
 
-                    client_connection = Client(fileno, 25565, address, connection)
-                    fib[fileno] = client_connection
+                    client_connection = Client(connection.fileno(), 25565, address, connection)
+                    fib[connection.fileno()] = client_connection
+                    fcntl.fcntl(connection, fcntl.F_SETFL, os.O_NONBLOCK)
+                    epoll.register(client_connection.fileno, select.EPOLLIN | select.EPOLLOUT)
                 elif event & select.EPOLLIN:
                     client_connection = fib[fileno]
                     while True:
                         try:
                             msg = client_connection.connection.recv(2048)
+                            print(msg)
+                            print("read")
                             if msg == "":
                                 break
                         except IOError as e:
                             if errno.EAGAIN == e.errno or errno.EWOULDBLOCK == e.errno:
                                 break
                             raise
+                        print(msg)
                         queue_msg(client_connection, msg)
                 elif event & select.EPOLLOUT:
                     client_connection = fib[fileno]
@@ -72,10 +76,12 @@ def main() -> None:
 
 
 def send_msg(client_connection: Client) -> None:
-    while True:
+    while len(client_connection.queue) > 0:
         msg = client_connection.queue[0]
+        print(msg)
+        print("send")
         try:
-            client_connection.connection.send(msg.encode())
+            client_connection.connection.send(msg)
         except IOError as e:
             if errno.EAGAIN == e.errno or errno.EWOULDBLOCK == e.errno:
                 break

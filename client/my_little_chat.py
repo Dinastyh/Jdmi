@@ -1,4 +1,10 @@
 from enum import Enum
+import select
+import socket
+import os
+import sys
+import fcntl
+import errno
 
 class EventType(Enum):
     READ = 1
@@ -21,24 +27,24 @@ class Connection:
         self.epoll.register(self.fds, select.EPOLLIN)
 
         self.queue = []
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        print(ip_address)
-        print(port)
-        server_socket.connect((ip_address, int(port)))
-        server_socket.setblocking(False)
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        print(self.ip_address)
+        print(self.port)
+        self.server_socket.connect((self.ip_address, int(port)))
+        self.server_socket.setblocking(False)
 
-        self.epoll.register(server_socket.fileno(), select.EPOLLIN | select.EPOLLOUT)
+        self.epoll.register(self.server_socket.fileno(), select.EPOLLIN | select.EPOLLOUT)
 
     def close(self) -> None:
-        connection.epoll.close()
+        self.epoll.close()
 
     def receive(self) -> str:
-        msg = ""
+        msg = b""
         while True:
             try:
-                tmp = server_socket.recv(2048)
-                if msg == "":
+                tmp = self.server_socket.recv(2048)
+                if tmp == "":
                     break
                 msg += tmp
             except IOError as e:
@@ -48,10 +54,11 @@ class Connection:
         return msg
 
     def send(self) -> None:
-        while len(connection.queue) > 0:
-            msg = connection.queue[0]
+        while len(self.queue) > 0:
+            msg = self.queue[0]
             try:
-                server_socket.send(msg.encode())
+                self.server_socket.send(msg.encode())
+                self.queue.pop(0)
             except IOError as e:
                 if errno.EAGAIN == e.errno or errno.EWOULDBLOCK == e.errno:
                     break
@@ -65,21 +72,20 @@ class Connection:
                 break
             msg += tmp
         if msg:
-            msg = "[" + connection.name + "] -> " + msg
-            connection.queue.append(msg)
+            msg = "[" + self.username + "] -> " + msg
+            self.queue.append(msg)
 
     def waitEvent(self) -> EventType:
         events = self.epoll.poll(1)
         for fileno, event in events:
             if event & select.EPOLLIN:
-                if fileno == self.fd:
+                if fileno == self.fds:
                     return EventType.READ
                     #connection.readInput()
                 else:
                     return EventType.RECV
                     #msg = connection.receive()
                     #print(msg)
-            else:
-                return EventType.SEND
+        return EventType.SEND
                 #connection.send()
-        return EventType.NONE
+        #return EventType.NONE
