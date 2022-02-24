@@ -8,23 +8,19 @@ class EventType(Enum):
 
 class Connection:
 
-    def __init__(self, name, address, port, epoll, queue, fds):
+    def __init__(self, name, address, port):
         self.username = name
         self.ip_address = address
         self.port = port
-        self.epoll = epoll
-        self.queue = queue
-        self.fds = fds
 
-    def connect(name, ip_address, port):
-        fd = sys.stdin.fileno()
-        fl = fcntl.fcntl(fd, fcntl.F_GETFL)
-        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+        self.fds = sys.stdin.fileno()
+        fl = fcntl.fcntl(self.fds, fcntl.F_GETFL)
+        fcntl.fcntl(self.fds, fcntl.F_SETFL, fl | os.O_NONBLOCK)
 
-        epoll = select.epoll()
-        epoll.register(fd, select.EPOLLIN)
+        self.epoll = select.epoll()
+        self.epoll.register(self.fds, select.EPOLLIN)
 
-        queue = []
+        self.queue = []
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         print(ip_address)
@@ -32,14 +28,12 @@ class Connection:
         server_socket.connect((ip_address, int(port)))
         server_socket.setblocking(False)
 
-        epoll.register(server_socket.fileno(), select.EPOLLIN | select.EPOLLOUT)
+        self.epoll.register(server_socket.fileno(), select.EPOLLIN | select.EPOLLOUT)
 
-        return Connection(name, ip_address, port, epoll, queue, fd)
-
-    def close(connection) -> None:
+    def close(self) -> None:
         connection.epoll.close()
 
-    def receive(connection) -> str:
+    def receive(self) -> str:
         msg = ""
         while True:
             try:
@@ -53,7 +47,7 @@ class Connection:
                 raise
         return msg
 
-    def send(connection) -> None:
+    def send(self) -> None:
         while len(connection.queue) > 0:
             msg = connection.queue[0]
             try:
@@ -63,7 +57,7 @@ class Connection:
                     break
                 raise
 
-    def readInput(connection) -> None:
+    def readInput(self) -> None:
         msg = ""
         while True:
             tmp = sys.stdin.read(2048)

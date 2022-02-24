@@ -13,7 +13,7 @@ def main() -> None:
     address = input("Server ip:")
     port = input("Server port:")
 
-    connection = connect(name, address, port)
+    connection = Connection(name, address, port)
 
     while True:
         event = connection.waitEvent()
